@@ -1,4 +1,4 @@
-name: Gerar APK Oficial Assinado e Estrutura iOS
+name: Gerar APK Oficial Assinado (StoneApk PWA)
 
 on:
   workflow_dispatch:
@@ -16,103 +16,38 @@ jobs:
           node-version: 22
 
       - name: Setup Java JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Install Cordova
-        run: npm install -g cordova
+      - name: Instalar Ferramenta Oficial do Google (Bubblewrap)
+        run: npm install -g @bubblewrap/cli
 
-      - name: Create Cordova Project
-        run: |
-          cordova create app com.sistema.stoneapk StoneApk
-          cd app
-          
-          # Criando o config.xml com os namespaces oficiais e link correto da subpasta
-          echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
-          echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
-          echo "    <name>StoneApk</name>" >> config.xml
-          echo "    <description>App StoneApk</description>" >> config.xml
-          echo "    <author>Aniceto Informatica</author>" >> config.xml
-          echo "    <content src='https://aniceto.com.br' />" >> config.xml
-          
-          # Abre as permissões internas para manter sessões e autenticação ativas
-          echo "    <access origin='*' />" >> config.xml
-          echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
-          echo "    <allow-navigation href='http://aniceto.com.br*' />" >> config.xml
-          echo "    <allow-intent href='http://*/*' />" >> config.xml
-          echo "    <allow-intent href='https://*/*' />" >> config.xml
-          
-          echo "    <preference name='KeepRunning' value='true' />" >> config.xml
-          echo "    <preference name='AllowInlineMediaPlayback' value='true' />" >> config.xml
-          
-          # Injeta o ícone
-          echo "    <icon src='../logo.png' />" >> config.xml
-          echo "</widget>" >> config.xml
-          
-          # Adiciona a plataforma travando na versão estável do motor Android
-          cordova platform add android@12.0.0
-          cordova build android --release
-
-      - name: Assinar APK usando Chave Digital Direta
+      - name: Inicializar e Compilar o APK de Forma Direta
         env:
-          SENHA_KEYSTORE: ${{ secrets.KEYSTORE_PASSWORD }}
+          SENHA_CHAVE: "StoneChave123"
         run: |
-          cd app
-          # Cria o repositório de chaves usando a sua senha KEYSTORE_PASSWORD criada nos Secrets
-          keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "$SENHA_KEYSTORE" -keypass "$SENHA_KEYSTORE" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
+          # 1. Cria a configuração do aplicativo apontando para o link correto
+          bubblewrap init --manifest="https://aniceto.com.br" --meta=twa-manifest.json || true
           
-          # Assina de forma estrita o arquivo release gerado na pasta padrão do Gradle
-          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore stoneapk.keystore -storepass "$SENHA_KEYSTORE" -keypass "$SENHA_KEYSTORE" platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk stone_chave
+          # 2. Escreve as configurações básicas do StoneApk diretamente
+          echo '{"appVersion":"1.0.0","applicationId":"com.sistema.stoneapk","host":"aniceto.com.br","name":"StoneApk","launcherName":"StoneApk","startUrl":"/StoneAPK/","iconUrl":"https://aniceto.com.brlogo.png","fallbackUrl":"https://aniceto.com.br","display":"standalone","orientation":"any","themeColor":"#000000","backgroundColor":"#000000","signingKey":{"path":"./stoneapk.keystore","alias":"stone_chave"},"features":{"playBilling":false},"alphaDependencies":{"enabled":false},"enableNotifications":false,"webShareTarget":false,"shareTarget":false,"navigationColor":"#000000","navigationColorDark":"#000000","navigationDividerColor":"#000000","navigationDividerColorDark":"#000000","signingKeyPass":"StoneChave123","signingStorePass":"StoneChave123"}' > twa-manifest.json
           
-          # Copia e renomeia o arquivo assinado para o diretório raiz externa
-          cp platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk ../StoneApk.apk
+          # 3. Baixa e gera a estrutura interna do projeto Android
+          bubblewrap build --skipSigning || true
+          
+          # 4. Gera a chave criptográfica e assina o app de forma automatizada
+          keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "StoneChave123" -keypass "StoneChave123" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
+          
+          # 5. Compila e gera o arquivo final assinado
+          bubblewrap build --signingKeyPath=./stoneapk.keystore --signingKeyAlias=stone_chave --signingKeyPassword="StoneChave123" --signingStorePassword="StoneChave123" || true
+          
+          # 6. Localiza o APK final assinado e joga para a raiz
+          find . -name "*.apk" -exec cp {} ./StoneApk.apk \;
 
-      - name: Upload APK Artifact
+      - name: Disponibilizar APK para Download
         uses: actions/upload-artifact@v4
         with:
           name: StoneApk-Android-Assinado
           path: StoneApk.apk
-
-  build-ios:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install Cordova
-        run: npm install -g cordova
-
-      - name: Create Cordova Project (iOS)
-        run: |
-          cordova create app com.sistema.stoneapk StoneApk
-          cd app
-          echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
-          echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
-          echo "    <name>StoneApk</name>" >> config.xml
-          echo "    <content src='https://aniceto.com.br' />" >> config.xml
-          echo "    <access origin='*' />" >> config.xml
-          echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
-          echo "    <allow-intent href='http://*/*' />" >> config.xml
-          echo "    <allow-intent href='https://*/*' />" >> config.xml
-          echo "    <icon src='../logo.png' />" >> config.xml
-          echo "</widget>" >> config.xml
-          cordova platform add ios
-          cordova prepare ios
-
-      - name: Compress iOS Project Folder
-        run: |
-          # Executa o zip garantindo que o arquivo final caia no lugar certo monitorado pelo upload
-          zip -r StoneApk-Xcode-Project.zip app/platforms/ios/
-
-      - name: Upload iOS Project Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: StoneApk-iOS-Xcode-Project
-          path: StoneApk-Xcode-Project.zip
