@@ -1,4 +1,4 @@
-name: Gerar APK e Projeto iOS (StoneApk Final)
+name: Gerar APK e Projeto iOS (StoneApk Link Fix)
 
 on:
   workflow_dispatch:
@@ -29,21 +29,24 @@ jobs:
           cordova create app com.sistema.stoneapk StoneApk
           cd app
           
-          # Criando o config.xml com o nome definitivo "StoneApk"
+          # Criando o config.xml com liberacao total do dominio para evitar desvios no login
           echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
           echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
           echo "    <name>StoneApk</name>" >> config.xml
           echo "    <description>App StoneApk</description>" >> config.xml
           echo "    <author>Aniceto Informatica</author>" >> config.xml
-          echo "    <content src='https://aniceto.com.br' />" >> config.xml
+          echo "    <content src='https://aniceto.com.br/StoneAPK/' />" >> config.xml
           
-          # Bloqueio de escopo para prender o app na pasta /StoneAPK/
+          # Permite que o app navegue livremente pelas rotas internas e cookies de sessao da Aniceto
           echo "    <access origin='*' />" >> config.xml
-          echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
-          echo "    <allow-navigation href='https://aniceto.com.brindex.php*' />" >> config.xml
+          echo "    <allow-navigation href='https://aniceto.com.br/*' />" >> config.xml
+          echo "    <allow-navigation href='http://aniceto.com.br*' />" >> config.xml
           echo "    <allow-intent href='http://*/*' />" >> config.xml
           echo "    <allow-intent href='https://*/*' />" >> config.xml
+          
+          # Preferencias cruciais para manter sessoes e logins ativos sem deslogar
           echo "    <preference name='KeepRunning' value='true' />" >> config.xml
+          echo "    <preference name='AllowInlineMediaPlayback' value='true' />" >> config.xml
           
           # Icone logo.png localizado na raiz externa
           echo "    <icon src='../logo.png' />" >> config.xml
@@ -82,10 +85,9 @@ jobs:
           echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
           echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
           echo "    <name>StoneApk</name>" >> config.xml
-          echo "    <content src='https://aniceto.com.br' />" >> config.xml
+          echo "    <content src='https://aniceto.com.br/StoneAPK/' />" >> config.xml
           echo "    <access origin='*' />" >> config.xml
-          echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
-          echo "    <allow-navigation href='https://aniceto.com.brindex.php*' />" >> config.xml
+          echo "    <allow-navigation href='https://aniceto.com.br/*' />" >> config.xml
           echo "    <allow-intent href='http://*/*' />" >> config.xml
           echo "    <allow-intent href='https://*/*' />" >> config.xml
           echo "    <icon src='../logo.png' />" >> config.xml
