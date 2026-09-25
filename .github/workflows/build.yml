@@ -1,7 +1,7 @@
-name: Gerar APK e IPA (StoneApk)
+name: Gerar APK e Projeto iOS (StoneApk)
 
 on:
-  workflow_dispatch: # Permite que você clique em um botão para gerar quando quiser
+  workflow_dispatch:
 
 jobs:
   build-android:
@@ -13,7 +13,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -33,12 +33,12 @@ jobs:
           echo "    <name>StoneApk</name>" >> config.xml
           echo "    <description>App StoneApk</description>" >> config.xml
           echo "    <author>Desenvolvedor</author>" >> config.xml
-          echo "    <content src='https://aniceto.com.br/StoneAPK/' />" >> config.xml
+          echo "    <content src='https://aniceto.com.br' />" >> config.xml
           echo "    <access origin='*' />" >> config.xml
           echo "    <allow-navigation href='*' />" >> config.xml
           echo "</widget>" >> config.xml
           cordova platform add android
-          cordova build android --template=cordova-android
+          cordova build android --device
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -55,7 +55,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
 
       - name: Install Cordova
         run: npm install -g cordova
@@ -67,21 +67,20 @@ jobs:
           echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
           echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
           echo "    <name>StoneApk</name>" >> config.xml
-          echo "    <content src='https://aniceto.com.br/StoneAPK/' />" >> config.xml
+          echo "    <content src='https://aniceto.com.br' />" >> config.xml
           echo "    <access origin='*' />" >> config.xml
           echo "    <allow-navigation href='*' />" >> config.xml
           echo "</widget>" >> config.xml
           cordova platform add ios
-          cordova build ios --emulator
+          # Prepara o projeto estrutural sem tentar compilar nativamente sem assinatura comercial
+          cordova prepare ios
 
-      - name: Compress iOS App
+      - name: Compress iOS Project Folder
         run: |
-          mkdir -p build-ios/Payload
-          cp -r app/platforms/ios/build/emulator/StoneApk.app build-ios/Payload/
-          cd build-ios && zip -r ../StoneApk.ipa Payload
+          zip -r StoneApk-Xcode-Project.zip app/platforms/ios/
 
-      - name: Upload IPA Artifact
+      - name: Upload iOS Project Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: App-iOS-IPA
-          path: StoneApk.ipa
+          name: App-iOS-Xcode-Project
+          path: StoneApk-Xcode-Project.zip
