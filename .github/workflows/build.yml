@@ -1,11 +1,11 @@
-name: Gerar StoneApk Final Unificado (Android e iOS)
+name: Gerar StoneApk Final (Android e iOS Separados)
 
 on:
   workflow_dispatch:
 
 jobs:
-  build-apps:
-    runs-on: macos-latest # Roda tudo em Mac para garantir compatibilidade total de caminhos
+  build-android:
+    runs-on: ubuntu-latest # Máquina ideal e nativa para compilar Android
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -16,7 +16,7 @@ jobs:
           node-version: 22
 
       - name: Setup Java JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -24,12 +24,11 @@ jobs:
       - name: Install Cordova
         run: npm install -g cordova
 
-      - name: Create Cordova Project
+      - name: Create Cordova Project (Android)
         run: |
           cordova create app com.sistema.stoneapk StoneApk
           cd app
           
-          # Criando o config.xml corrigido e travado na pasta /StoneAPK/
           echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
           echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
           echo "    <name>StoneApk</name>" >> config.xml
@@ -37,7 +36,6 @@ jobs:
           echo "    <author>Aniceto Informatica</author>" >> config.xml
           echo "    <content src='https://aniceto.com.br' />" >> config.xml
           
-          # Permite navegação interna estável sem desviar para o domínio raiz institucional
           echo "    <access origin='*' />" >> config.xml
           echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
           echo "    <allow-navigation href='http://aniceto.com.br*' />" >> config.xml
@@ -48,36 +46,64 @@ jobs:
           echo "    <preference name='AllowInlineMediaPlayback' value='true' />" >> config.xml
           echo "    <icon src='../logo.png' />" >> config.xml
           echo "</widget>" >> config.xml
-
-      - name: Compilar e Assinar Plataforma Android
-        run: |
-          cd app
+          
           cordova platform add android
           cordova build android --release
-          
-          # Cria o arquivo keystore com a senha oculta do seu GitHub
-          keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -keypass "${{ secrets.KEYSTORE_PASSWORD }}" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
-          
-          # Assina o APK gerado no local padrão do Cordova
-          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore stoneapk.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -keypass "${{ secrets.KEYSTORE_PASSWORD }}" platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk stone_chave
-          
-          # Move e renomeia o arquivo para a raiz do repositório
-          cp platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk ../StoneApk.apk
 
-      - name: Configurar Plataforma iOS
+      - name: Assinar APK com Chave Fixa Embutida
         run: |
           cd app
-          cordova platform add ios
-          cordova prepare ios
-          cd ..
-          # Compacta a estrutura completa do iOS na raiz do projeto
-          zip -r ./StoneApk-Xcode-Project.zip app/platforms/ios/
+          # Cria a assinatura usando uma senha padrão estável
+          keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "StoneChave123" -keypass "StoneChave123" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
+          
+          # Assina digitalmente o arquivo release gerado na pasta padrão do Cordova
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore stoneapk.keystore -storepass "StoneChave123" -keypass "StoneChave123" platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk stone_chave
+          
+          # Copia o arquivo pronto e assinado para a raiz externa
+          cp platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk ../StoneApk.apk
 
       - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
           name: StoneApk-Android-Assinado
           path: StoneApk.apk
+
+  build-ios:
+    runs-on: macos-latest # Máquina obrigatória da Apple para estruturar o iOS
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Cordova
+        run: npm install -g cordova
+
+      - name: Create Cordova Project (iOS)
+        run: |
+          cordova create app com.sistema.stoneapk StoneApk
+          cd app
+          echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
+          echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
+          echo "    <name>StoneApk</name>" >> config.xml
+          echo "    <content src='https://aniceto.com.br' />" >> config.xml
+          echo "    <access origin='*' />" >> config.xml
+          echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
+          echo "    <allow-intent href='http://*/*' />" >> config.xml
+          echo "    <allow-intent href='https://*/*' />" >> config.xml
+          echo "    <icon src='../logo.png' />" >> config.xml
+          echo "</widget>" >> config.xml
+          
+          cordova platform add ios
+          cordova prepare ios
+
+      - name: Compress iOS Project Folder
+        run: |
+          # Compacta a estrutura gerada movendo o arquivo para a raiz antes do upload
+          zip -r ../StoneApk-Xcode-Project.zip app/platforms/ios/
 
       - name: Upload iOS Xcode Project
         uses: actions/upload-artifact@v4
