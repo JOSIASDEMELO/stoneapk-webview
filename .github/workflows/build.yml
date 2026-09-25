@@ -1,4 +1,4 @@
-name: Gerar APK Assinado Oficial e Projeto iOS
+name: Gerar APK Oficial Assinado e Estrutura iOS
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
 
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -29,6 +29,7 @@ jobs:
           cordova create app com.sistema.stoneapk StoneApk
           cd app
           
+          # Criando o config.xml com os namespaces oficiais e link correto da subpasta
           echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
           echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
           echo "    <name>StoneApk</name>" >> config.xml
@@ -36,7 +37,7 @@ jobs:
           echo "    <author>Aniceto Informatica</author>" >> config.xml
           echo "    <content src='https://aniceto.com.br' />" >> config.xml
           
-          # Mantém as sessões ativas e libera o carregamento de scripts
+          # Abre as permissões internas para manter sessões e autenticação ativas
           echo "    <access origin='*' />" >> config.xml
           echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
           echo "    <allow-navigation href='http://aniceto.com.br*' />" >> config.xml
@@ -45,24 +46,28 @@ jobs:
           
           echo "    <preference name='KeepRunning' value='true' />" >> config.xml
           echo "    <preference name='AllowInlineMediaPlayback' value='true' />" >> config.xml
+          
+          # Injeta o ícone
           echo "    <icon src='../logo.png' />" >> config.xml
           echo "</widget>" >> config.xml
           
-          cordova platform add android
+          # Adiciona a plataforma travando na versão estável do motor Android
+          cordova platform add android@12.0.0
           cordova build android --release
 
-      - name: Assinar APK com o Secret do GitHub
+      - name: Assinar APK usando Chave Digital Direta
         env:
-          MINHA_SENHA_OCULTA: ${{ secrets.KEYSTORE_PASSWORD }}
+          SENHA_KEYSTORE: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           cd app
-          # Cria o repositório de chaves injetando o seu secret mapeado de forma nativa
-          keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "$MINHA_SENHA_OCULTA" -keypass "$MINHA_SENHA_OCULTA" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
+          # Cria o repositório de chaves usando a sua senha KEYSTORE_PASSWORD criada nos Secrets
+          keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "$SENHA_KEYSTORE" -keypass "$SENHA_KEYSTORE" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
           
-          # Aplica a criptografia digital sobre o APK de produção
-          APK_PATH=$(find platforms/android/app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
-          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore stoneapk.keystore -storepass "$MINHA_SENHA_OCULTA" -keypass "$MINHA_SENHA_OCULTA" "$APK_PATH" stone_chave
-          cp "$APK_PATH" ../StoneApk.apk
+          # Assina de forma estrita o arquivo release gerado na pasta padrão do Gradle
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore stoneapk.keystore -storepass "$SENHA_KEYSTORE" -keypass "$SENHA_KEYSTORE" platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk stone_chave
+          
+          # Copia e renomeia o arquivo assinado para o diretório raiz externa
+          cp platforms/android/app/build/outputs/apk/release/app-release-unsigned.apk ../StoneApk.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -79,7 +84,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
 
       - name: Install Cordova
         run: npm install -g cordova
@@ -103,7 +108,8 @@ jobs:
 
       - name: Compress iOS Project Folder
         run: |
-          zip -r ../StoneApk-Xcode-Project.zip app/platforms/ios/
+          # Executa o zip garantindo que o arquivo final caia no lugar certo monitorado pelo upload
+          zip -r StoneApk-Xcode-Project.zip app/platforms/ios/
 
       - name: Upload iOS Project Artifact
         uses: actions/upload-artifact@v4
