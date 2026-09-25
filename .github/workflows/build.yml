@@ -1,4 +1,4 @@
-name: Gerar APK e Projeto iOS (StoneApk - Logo e Link Corrigidos)
+name: Gerar APK e Projeto iOS (StoneApk Final)
 
 on:
   workflow_dispatch:
@@ -29,7 +29,7 @@ jobs:
           cordova create app com.sistema.stoneapk StoneApk
           cd app
           
-          # Criando o config.xml apontando o icone diretamente para a raiz do projeto
+          # Criando o config.xml com o nome definitivo "StoneApk"
           echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
           echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
           echo "    <name>StoneApk</name>" >> config.xml
@@ -37,7 +37,7 @@ jobs:
           echo "    <author>Aniceto Informatica</author>" >> config.xml
           echo "    <content src='https://aniceto.com.br' />" >> config.xml
           
-          # Protecao de escopo para nao sair da pasta /StoneAPK/
+          # Bloqueio de escopo para prender o app na pasta /StoneAPK/
           echo "    <access origin='*' />" >> config.xml
           echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
           echo "    <allow-navigation href='https://aniceto.com.brindex.php*' />" >> config.xml
@@ -45,18 +45,21 @@ jobs:
           echo "    <allow-intent href='https://*/*' />" >> config.xml
           echo "    <preference name='KeepRunning' value='true' />" >> config.xml
           
-          # Configuracao correta do icone buscando o arquivo na raiz externa
+          # Icone logo.png localizado na raiz externa
           echo "    <icon src='../logo.png' />" >> config.xml
           echo "</widget>" >> config.xml
           
           cordova platform add android
           cordova build android --device
+          
+          # Renomeia o arquivo gerado para o nome correto do seu sistema
+          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk ../StoneApk.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: App-Android-APK
-          path: app/platforms/android/app/build/outputs/apk/debug/app-debug.apk
+          name: StoneApk-Android
+          path: StoneApk.apk
 
   build-ios:
     runs-on: macos-latest
@@ -97,5 +100,5 @@ jobs:
       - name: Upload iOS Project Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: App-iOS-Xcode-Project
+          name: StoneApk-iOS-Xcode-Project
           path: StoneApk-Xcode-Project.zip
