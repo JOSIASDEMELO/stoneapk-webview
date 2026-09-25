@@ -26,11 +26,12 @@ jobs:
 
       - name: Criar Projeto Android
         run: |
-          cordova create app com.sistema.stoneapk StoneApk
+          # ID Exclusivo alterado para com.aniceto.stoneapk para evitar rejeição do celular
+          cordova create app com.aniceto.stoneapk StoneApk
           cd app
           
           echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
-          echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
+          echo "<widget id='com.aniceto.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
           echo "    <name>StoneApk</name>" >> config.xml
           echo "    <description>App StoneApk</description>" >> config.xml
           echo "    <author>Aniceto Informatica</author>" >> config.xml
@@ -55,13 +56,8 @@ jobs:
           SENHA_DO_USUARIO: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           cd app
-          # Gera a chave keystore de criptografia usando a senha oculta do seu GitHub
           keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "$SENHA_DO_USUARIO" -keypass "$SENHA_DO_USUARIO" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
-          
-          # Injeta a assinatura digital no arquivo APK gerado pelo Cordova
           jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore stoneapk.keystore -storepass "$SENHA_DO_USUARIO" -keypass "$SENHA_DO_USUARIO" platforms/android/app/build/outputs/apk/debug/app-debug.apk stone_chave
-          
-          # Move e renomeia o arquivo assinado para a raiz externa
           cp platforms/android/app/build/outputs/apk/debug/app-debug.apk ../StoneApk.apk
 
       - name: Upload Android APK Assinado
@@ -86,10 +82,10 @@ jobs:
 
       - name: Criar Projeto iOS
         run: |
-          cordova create app com.sistema.stoneapk StoneApk
+          cordova create app com.aniceto.stoneapk StoneApk
           cd app
           echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
-          echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
+          echo "<widget id='com.aniceto.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
           echo "    <name>StoneApk</name>" >> config.xml
           echo "    <content src='https://aniceto.com.br' />" >> config.xml
           echo "    <access origin='*' />" >> config.xml
@@ -102,7 +98,6 @@ jobs:
           cordova platform add ios
           cordova prepare ios
           cd ..
-          # Cria o arquivo compactado garantindo que ele caia na raiz monitorada pelo upload
           zip -r ./StoneApk-Xcode-Project.zip app/platforms/ios/
 
       - name: Upload iOS Xcode Project
