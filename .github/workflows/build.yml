@@ -1,4 +1,4 @@
-name: Gerar APK Oficial Assinado (StoneApk PWA)
+name: Gerar StoneApk (Android Assinado e Projeto iOS)
 
 on:
   workflow_dispatch:
@@ -24,26 +24,13 @@ jobs:
       - name: Instalar Ferramenta Oficial do Google (Bubblewrap)
         run: npm install -g @bubblewrap/cli
 
-      - name: Inicializar e Compilar o APK de Forma Direta
-        env:
-          SENHA_CHAVE: "StoneChave123"
+      - name: Inicializar e Compilar o APK
         run: |
-          # 1. Cria a configuração do aplicativo apontando para o link correto
           bubblewrap init --manifest="https://aniceto.com.br" --meta=twa-manifest.json || true
-          
-          # 2. Escreve as configurações básicas do StoneApk diretamente
           echo '{"appVersion":"1.0.0","applicationId":"com.sistema.stoneapk","host":"aniceto.com.br","name":"StoneApk","launcherName":"StoneApk","startUrl":"/StoneAPK/","iconUrl":"https://aniceto.com.brlogo.png","fallbackUrl":"https://aniceto.com.br","display":"standalone","orientation":"any","themeColor":"#000000","backgroundColor":"#000000","signingKey":{"path":"./stoneapk.keystore","alias":"stone_chave"},"features":{"playBilling":false},"alphaDependencies":{"enabled":false},"enableNotifications":false,"webShareTarget":false,"shareTarget":false,"navigationColor":"#000000","navigationColorDark":"#000000","navigationDividerColor":"#000000","navigationDividerColorDark":"#000000","signingKeyPass":"StoneChave123","signingStorePass":"StoneChave123"}' > twa-manifest.json
-          
-          # 3. Baixa e gera a estrutura interna do projeto Android
           bubblewrap build --skipSigning || true
-          
-          # 4. Gera a chave criptográfica e assina o app de forma automatizada
           keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "StoneChave123" -keypass "StoneChave123" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
-          
-          # 5. Compila e gera o arquivo final assinado
           bubblewrap build --signingKeyPath=./stoneapk.keystore --signingKeyAlias=stone_chave --signingKeyPassword="StoneChave123" --signingStorePassword="StoneChave123" || true
-          
-          # 6. Localiza o APK final assinado e joga para a raiz
           find . -name "*.apk" -exec cp {} ./StoneApk.apk \;
 
       - name: Disponibilizar APK para Download
@@ -51,3 +38,45 @@ jobs:
         with:
           name: StoneApk-Android-Assinado
           path: StoneApk.apk
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Cordova
+        run: npm install -g cordova
+
+      - name: Create Cordova Project (iOS)
+        run: |
+          cordova create app com.sistema.stoneapk StoneApk
+          cd app
+          echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
+          echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
+          echo "    <name>StoneApk</name>" >> config.xml
+          echo "    <content src='https://aniceto.com.br' />" >> config.xml
+          echo "    <access origin='*' />" >> config.xml
+          echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
+          echo "    <allow-intent href='http://*/*' />" >> config.xml
+          echo "    <allow-intent href='https://*/*' />" >> config.xml
+          echo "    <icon src='../logo.png' />" >> config.xml
+          echo "</widget>" >> config.xml
+          cordova platform add ios
+          cordova prepare ios
+
+      - name: Compress iOS Project Folder
+        run: |
+          # Correção do caminho: o zip agora é gerado na raiz exata do repositório
+          zip -r ./StoneApk-Xcode-Project.zip app/platforms/ios/
+
+      - name: Upload iOS Project Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StoneApk-iOS-Xcode-Project
+          path: StoneApk-Xcode-Project.zip
