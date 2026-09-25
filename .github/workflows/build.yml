@@ -1,4 +1,4 @@
-name: Gerar APK e Projeto iOS (StoneApk)
+name: Gerar APK e Projeto iOS (StoneApk - Logo e Link Corrigidos)
 
 on:
   workflow_dispatch:
@@ -28,15 +28,27 @@ jobs:
         run: |
           cordova create app com.sistema.stoneapk StoneApk
           cd app
+          
+          # Criando o config.xml apontando o icone diretamente para a raiz do projeto
           echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
           echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
           echo "    <name>StoneApk</name>" >> config.xml
           echo "    <description>App StoneApk</description>" >> config.xml
-          echo "    <author>Desenvolvedor</author>" >> config.xml
+          echo "    <author>Aniceto Informatica</author>" >> config.xml
           echo "    <content src='https://aniceto.com.br' />" >> config.xml
+          
+          # Protecao de escopo para nao sair da pasta /StoneAPK/
           echo "    <access origin='*' />" >> config.xml
-          echo "    <allow-navigation href='*' />" >> config.xml
+          echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
+          echo "    <allow-navigation href='https://aniceto.com.brindex.php*' />" >> config.xml
+          echo "    <allow-intent href='http://*/*' />" >> config.xml
+          echo "    <allow-intent href='https://*/*' />" >> config.xml
+          echo "    <preference name='KeepRunning' value='true' />" >> config.xml
+          
+          # Configuracao correta do icone buscando o arquivo na raiz externa
+          echo "    <icon src='../logo.png' />" >> config.xml
           echo "</widget>" >> config.xml
+          
           cordova platform add android
           cordova build android --device
 
@@ -69,10 +81,13 @@ jobs:
           echo "    <name>StoneApk</name>" >> config.xml
           echo "    <content src='https://aniceto.com.br' />" >> config.xml
           echo "    <access origin='*' />" >> config.xml
-          echo "    <allow-navigation href='*' />" >> config.xml
+          echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
+          echo "    <allow-navigation href='https://aniceto.com.brindex.php*' />" >> config.xml
+          echo "    <allow-intent href='http://*/*' />" >> config.xml
+          echo "    <allow-intent href='https://*/*' />" >> config.xml
+          echo "    <icon src='../logo.png' />" >> config.xml
           echo "</widget>" >> config.xml
           cordova platform add ios
-          # Prepara o projeto estrutural sem tentar compilar nativamente sem assinatura comercial
           cordova prepare ios
 
       - name: Compress iOS Project Folder
