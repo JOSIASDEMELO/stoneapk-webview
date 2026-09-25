@@ -1,4 +1,4 @@
-name: Gerar StoneApk (Android Assinado e Projeto iOS)
+name: Gerar StoneApk Completo (Android e iOS Juntos)
 
 on:
   workflow_dispatch:
@@ -31,13 +31,15 @@ jobs:
           bubblewrap build --skipSigning || true
           keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "StoneChave123" -keypass "StoneChave123" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
           bubblewrap build --signingKeyPath=./stoneapk.keystore --signingKeyAlias=stone_chave --signingKeyPassword="StoneChave123" --signingStorePassword="StoneChave123" || true
-          find . -name "*.apk" -exec cp {} ./StoneApk.apk \;
+          
+          # Coleta o arquivo assinado do local correto onde o Bubblewrap salva nativamente
+          cp app-release-signed.apk ./StoneApk.apk || cp app-release-unsigned-aligned.apk ./StoneApk.apk || cp ./app/build/outputs/apk/release/*.apk ./StoneApk.apk || true
 
       - name: Disponibilizar APK para Download
         uses: actions/upload-artifact@v4
         with:
           name: StoneApk-Android-Assinado
-          path: StoneApk.apk
+          path: ./StoneApk.apk
 
   build-ios:
     runs-on: macos-latest
@@ -72,11 +74,10 @@ jobs:
 
       - name: Compress iOS Project Folder
         run: |
-          # Correção do caminho: o zip agora é gerado na raiz exata do repositório
           zip -r ./StoneApk-Xcode-Project.zip app/platforms/ios/
 
       - name: Upload iOS Project Artifact
         uses: actions/upload-artifact@v4
         with:
           name: StoneApk-iOS-Xcode-Project
-          path: StoneApk-Xcode-Project.zip
+          path: ./StoneApk-Xcode-Project.zip
