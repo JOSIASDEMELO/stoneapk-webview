@@ -1,4 +1,4 @@
-name: Gerar APK Assinado Direto e Projeto iOS (StoneApk)
+name: Gerar APK Assinado Oficial e Projeto iOS
 
 on:
   workflow_dispatch:
@@ -13,10 +13,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Setup Java JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
@@ -29,7 +29,6 @@ jobs:
           cordova create app com.sistema.stoneapk StoneApk
           cd app
           
-          # Criando o config.xml apontando de forma estrita para a pasta do sistema
           echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
           echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
           echo "    <name>StoneApk</name>" >> config.xml
@@ -37,7 +36,7 @@ jobs:
           echo "    <author>Aniceto Informatica</author>" >> config.xml
           echo "    <content src='https://aniceto.com.br' />" >> config.xml
           
-          # Permite carregar recursos estáticos e scripts da raiz do domínio
+          # Mantém as sessões ativas e libera o carregamento de scripts
           echo "    <access origin='*' />" >> config.xml
           echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
           echo "    <allow-navigation href='http://aniceto.com.br*' />" >> config.xml
@@ -52,15 +51,17 @@ jobs:
           cordova platform add android
           cordova build android --release
 
-      - name: Assinar APK com Chave Interna do Script
+      - name: Assinar APK com o Secret do GitHub
+        env:
+          MINHA_SENHA_OCULTA: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
           cd app
-          # Cria a assinatura usando uma senha padrão imutável de compilação
-          keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "StoneChave123" -keypass "StoneChave123" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
+          # Cria o repositório de chaves injetando o seu secret mapeado de forma nativa
+          keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "$MINHA_SENHA_OCULTA" -keypass "$MINHA_SENHA_OCULTA" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
           
-          # Captura o pacote compilado em modo de produção e injeta a criptografia
+          # Aplica a criptografia digital sobre o APK de produção
           APK_PATH=$(find platforms/android/app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
-          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore stoneapk.keystore -storepass "StoneChave123" -keypass "StoneChave123" "$APK_PATH" stone_chave
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore stoneapk.keystore -storepass "$MINHA_SENHA_OCULTA" -keypass "$MINHA_SENHA_OCULTA" "$APK_PATH" stone_chave
           cp "$APK_PATH" ../StoneApk.apk
 
       - name: Upload APK Artifact
@@ -78,7 +79,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install Cordova
         run: npm install -g cordova
@@ -102,10 +103,10 @@ jobs:
 
       - name: Compress iOS Project Folder
         run: |
-          zip -r StoneApk-Xcode-Project.zip app/platforms/ios/
+          zip -r ../StoneApk-Xcode-Project.zip app/platforms/ios/
 
       - name: Upload iOS Project Artifact
         uses: actions/upload-artifact@v4
         with:
           name: StoneApk-iOS-Xcode-Project
-          path: StoneApk-iOS-Xcode-Project.zip
+          path: StoneApk-Xcode-Project.zip
