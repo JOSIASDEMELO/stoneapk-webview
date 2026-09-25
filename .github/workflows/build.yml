@@ -1,4 +1,4 @@
-name: Gerar APK e Projeto iOS (StoneApk Link Fix)
+name: Gerar APK Assinado e Projeto iOS (StoneApk Final)
 
 on:
   workflow_dispatch:
@@ -35,11 +35,11 @@ jobs:
           echo "    <name>StoneApk</name>" >> config.xml
           echo "    <description>App StoneApk</description>" >> config.xml
           echo "    <author>Aniceto Informatica</author>" >> config.xml
-          echo "    <content src='https://aniceto.com.br/StoneAPK/' />" >> config.xml
+          echo "    <content src='https://aniceto.com.br' />" >> config.xml
           
           # Permite que o app navegue livremente pelas rotas internas e cookies de sessao da Aniceto
           echo "    <access origin='*' />" >> config.xml
-          echo "    <allow-navigation href='https://aniceto.com.br/*' />" >> config.xml
+          echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
           echo "    <allow-navigation href='http://aniceto.com.br*' />" >> config.xml
           echo "    <allow-intent href='http://*/*' />" >> config.xml
           echo "    <allow-intent href='https://*/*' />" >> config.xml
@@ -53,15 +53,27 @@ jobs:
           echo "</widget>" >> config.xml
           
           cordova platform add android
-          cordova build android --device
           
-          # Renomeia o arquivo gerado para o nome correto do seu sistema
-          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk ../StoneApk.apk
+          # Compila o APK oficial de producao (Release) desassinado
+          cordova build android --release
+
+      - name: Gerar Chave e Assinar APK automaticamente
+        run: |
+          cd app
+          # 1. Cria o arquivo de keystore usando o segredo do GitHub para a senha
+          keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -keypass "${{ secrets.KEYSTORE_PASSWORD }}" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
+          
+          # 2. Localiza o APK gerado e aplica a assinatura digital nele
+          APK_PATH=$(find platforms/android/app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore stoneapk.keystore -storepass "${{ secrets.KEYSTORE_PASSWORD }}" -keypass "${{ secrets.KEYSTORE_PASSWORD }}" "$APK_PATH" stone_chave
+          
+          # 3. Move e renomeia o arquivo assinado final para a raiz externa
+          cp "$APK_PATH" ../StoneApk.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: StoneApk-Android
+          name: StoneApk-Android-Assinado
           path: StoneApk.apk
 
   build-ios:
@@ -85,9 +97,9 @@ jobs:
           echo "<?xml version='1.0' encoding='utf-8'?>" > config.xml
           echo "<widget id='com.sistema.stoneapk' version='1.0.0' xmlns='http://w3.org' xmlns:cdv='http://apache.org'>" >> config.xml
           echo "    <name>StoneApk</name>" >> config.xml
-          echo "    <content src='https://aniceto.com.br/StoneAPK/' />" >> config.xml
+          echo "    <content src='https://aniceto.com.br' />" >> config.xml
           echo "    <access origin='*' />" >> config.xml
-          echo "    <allow-navigation href='https://aniceto.com.br/*' />" >> config.xml
+          echo "    <allow-navigation href='https://aniceto.com.br*' />" >> config.xml
           echo "    <allow-intent href='http://*/*' />" >> config.xml
           echo "    <allow-intent href='https://*/*' />" >> config.xml
           echo "    <icon src='../logo.png' />" >> config.xml
