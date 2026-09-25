@@ -1,4 +1,4 @@
-name: Gerar StoneApk Oficial Assinado (Android e iOS)
+name: Gerar StoneApk Estavel Unificado (Android e iOS)
 
 on:
   workflow_dispatch:
@@ -26,6 +26,7 @@ jobs:
 
       - name: Criar Projeto Android
         run: |
+          # Usando um ID exclusivo para o celular nao rejeitar a instalacao
           cordova create app com.aniceto.stoneapk StoneApk
           cd app
           
@@ -48,33 +49,15 @@ jobs:
           echo "</widget>" >> config.xml
           
           cordova platform add android
-          # Compilação em modo Release (Produção) oficial
-          cordova build android --release
+          cordova build android
+          
+          # Move e renomeia o arquivo gerado diretamente para a raiz externa
+          cp platforms/android/app/build/outputs/apk/debug/app-debug.apk ../StoneApk.apk
 
-      - name: Assinar e Alinhar o APK de Produção
-        env:
-          SENHA_DO_USUARIO: ${{ secrets.KEYSTORE_PASSWORD }}
-        run: |
-          cd app
-          # 1. Cria a chave de segurança com o seu KEYSTORE_PASSWORD
-          keytool -genkeypair -v -keystore stoneapk.keystore -alias stone_chave -keyalg RSA -keysize 2048 -validity 10000 -storepass "$SENHA_DO_USUARIO" -keypass "$SENHA_DO_USUARIO" -dname "CN=Aniceto, OU=Informatica, O=StoneApk, L=SaoPaulo, S=SP, C=BR"
-          
-          # 2. Localiza o APK Release não assinado gerado pelo Gradle
-          APK_RELEASE=$(find platforms/android/app/build/outputs/apk/release/ -name "*-unsigned.apk" | head -n 1)
-          
-          # 3. Alinha os binários do aplicativo (Obrigatório para o Android aceitar a instalação)
-          ${ANDROID_HOME}/build-tools/34.0.0/zipalign -v 4 "$APK_RELEASE" ../StoneApk-Aligned.apk
-          
-          # 4. Aplica a assinatura criptográfica final em cima do arquivo alinhado
-          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 -keystore stoneapk.keystore -storepass "$SENHA_DO_USUARIO" -keypass "$SENHA_DO_USUARIO" ../StoneApk-Aligned.apk stone_chave
-          
-          # 5. Move para o destino final com o nome correto
-          mv ../StoneApk-Aligned.apk ../StoneApk.apk
-
-      - name: Upload Android APK Assinado
+      - name: Upload Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: StoneApk-Android-Assinado
+          name: StoneApk-Android
           path: StoneApk.apk
 
   build-ios:
